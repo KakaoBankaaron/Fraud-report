@@ -1,0 +1,384 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>카카오뱅크 사기대출 방어 성과 보고</title>
+    <link href="https://fonts.googleapis.com/css2?family=Pretendard:wght@200;400;700;900&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --neon-green: #00ffa3;
+            --neon-purple: #bd00ff;
+            --neon-blue: #00d1ff;
+            --neon-red: #ff3366;
+            --text-main: #ffffff;
+            --text-dim: #cccccc;
+        }
+
+        body, html {
+            margin: 0; padding: 0;
+            width: 100%; height: 100%;
+            background-color: #050505;
+            color: var(--text-main);
+            font-family: 'Pretendard', sans-serif;
+            overflow: hidden;
+        }
+
+        /* 슬라이드 컨테이너 (Absolute 포지셔닝으로 Fade+Slide 구현) */
+        .slider-container {
+            position: relative;
+            width: 100vw;
+            height: 100vh;
+        }
+
+        .slide {
+            position: absolute;
+            top: 0; left: 0;
+            width: 100%; height: 100%;
+            padding: 80px 120px;
+            box-sizing: border-box;
+            display: flex;
+            align-items: center;
+            opacity: 0;
+            visibility: hidden;
+            /* 기본 상태: 오른쪽으로 밀려있음 + 투명함 */
+            transform: translateX(100px);
+            transition: all 0.8s cubic-bezier(0.4, 0, 0.2, 1);
+            background-size: cover;
+            background-position: center;
+        }
+
+        /* 배경 이미지 어둡게 처리 (가독성 확보) */
+        .slide::before {
+            content: '';
+            position: absolute;
+            top: 0; left: 0; width: 100%; height: 100%;
+            background: linear-gradient(100deg, rgba(5,5,5,1) 0%, rgba(5,5,5,0.85) 50%, rgba(5,5,5,0.3) 100%);
+            z-index: 1;
+        }
+
+        /* 활성화된 슬라이드 (Fade In + Slide to Center) */
+        .slide.active {
+            opacity: 1;
+            visibility: visible;
+            transform: translateX(0);
+            z-index: 10;
+        }
+
+        /* 지나간 슬라이드 (왼쪽으로 밀리며 Fade Out) */
+        .slide.prev {
+            opacity: 0;
+            visibility: hidden;
+            transform: translateX(-100px);
+            z-index: 5;
+        }
+
+        .content-wrapper {
+            position: relative;
+            z-index: 2;
+            display: grid;
+            grid-template-columns: 1.2fr 1fr;
+            gap: 80px;
+            width: 100%;
+            max-width: 1600px;
+            margin: 0 auto;
+        }
+
+        /* --- 등장 애니메이션 설정 --- */
+        .active .anim-item {
+            animation: fadeUp 0.8s cubic-bezier(0.2, 0.8, 0.2, 1) forwards;
+            opacity: 0;
+            transform: translateY(40px);
+        }
+        .delay-1 { animation-delay: 0.2s !important; }
+        .delay-2 { animation-delay: 0.4s !important; }
+        .delay-3 { animation-delay: 0.6s !important; }
+        .delay-4 { animation-delay: 0.8s !important; }
+
+        @keyframes fadeUp {
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        /* 텍스트 스타일링 */
+        .badge {
+            display: inline-block;
+            padding: 8px 24px;
+            border-radius: 50px;
+            font-size: 20px;
+            font-weight: 700;
+            letter-spacing: 2px;
+            margin-bottom: 20px;
+            background: rgba(255,255,255,0.1);
+            backdrop-filter: blur(5px);
+        }
+
+        .headline {
+            font-size: 64px;
+            font-weight: 900;
+            line-height: 1.2;
+            margin: 0 0 40px 0;
+            letter-spacing: -2px;
+        }
+
+        .highlight { font-weight: 900; }
+        
+        .bullet-list { list-style: none; padding: 0; margin: 0; }
+        .bullet-list li {
+            font-size: 26px;
+            color: var(--text-dim);
+            margin-bottom: 24px;
+            line-height: 1.5;
+            display: flex;
+            align-items: flex-start;
+        }
+        .bullet-list li::before {
+            content: "■";
+            font-size: 16px;
+            margin-right: 20px;
+            margin-top: 8px;
+        }
+
+        /* 비주얼 컴포넌트 공통 */
+        .visual-box {
+            background: rgba(255, 255, 255, 0.03);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 24px;
+            padding: 50px;
+            backdrop-filter: blur(10px);
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            box-shadow: 0 30px 60px rgba(0,0,0,0.5);
+        }
+
+        /* Slide 1: 차트 */
+        .chart-wrap { display: flex; align-items: flex-end; gap: 30px; height: 300px; width: 100%; justify-content: center;}
+        .bar-col { display: flex; flex-direction: column; align-items: center; gap: 15px; }
+        .bar { 
+            width: 70px; background: rgba(255,255,255,0.1); 
+            border-radius: 12px 12px 0 0; position: relative; 
+            transform-origin: bottom; transform: scaleY(0);
+        }
+        .active .bar { animation: growBar 1s cubic-bezier(0.2, 0.8, 0.2, 1) forwards; }
+        .bar.red { background: linear-gradient(0deg, var(--neon-red), #ff7a99); box-shadow: 0 0 30px rgba(255, 51, 102, 0.4); }
+        .bar-value { font-size: 24px; font-weight: 700; opacity: 0; }
+        .active .bar-value { animation: fadeIn 0.5s ease forwards; animation-delay: 1s; }
+        
+        @keyframes growBar { to { transform: scaleY(1); } }
+        @keyframes fadeIn { to { opacity: 1; } }
+
+        /* Slide 2: 프로세스 */
+        .process-flow { width: 100%; display: flex; flex-direction: column; gap: 20px; }
+        .step { 
+            background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1);
+            padding: 30px; border-radius: 16px; text-align: center; font-size: 28px; font-weight: 700;
+        }
+        .step.highlight-step {
+            background: linear-gradient(135deg, rgba(189,0,255,0.2), rgba(189,0,255,0.8));
+            border-color: var(--neon-purple); box-shadow: 0 0 40px rgba(189,0,255,0.4);
+            font-size: 34px; transform: scale(1.05);
+        }
+
+        /* Slide 3: 쉴드 */
+        .shield-container { position: relative; width: 300px; height: 350px; display: flex; align-items: center; justify-content: center;}
+        .shield-bg {
+            position: absolute; width: 100%; height: 100%;
+            background: url('data:image/svg+xml;utf8,<svg viewBox="0 0 24 24" fill="none" stroke="%2300d1ff" stroke-width="1" xmlns="http://www.w3.org/2000/svg"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>') no-repeat center;
+            opacity: 0.2;
+        }
+        .active .shield-pulse {
+            position: absolute; width: 100%; height: 100%;
+            background: url('data:image/svg+xml;utf8,<svg viewBox="0 0 24 24" fill="none" stroke="%2300d1ff" stroke-width="2" xmlns="http://www.w3.org/2000/svg"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>') no-repeat center;
+            animation: pulse 2s infinite;
+        }
+        .shield-text { position: relative; z-index: 2; font-size: 32px; font-weight: 900; text-align: center; color: var(--neon-blue); text-shadow: 0 0 20px rgba(0,209,255,0.8);}
+
+        @keyframes pulse {
+            0% { transform: scale(0.9); opacity: 1; }
+            100% { transform: scale(1.2); opacity: 0; }
+        }
+
+        /* 컨트롤 및 UI */
+        .controls {
+            position: fixed; bottom: 50px; right: 80px; z-index: 100;
+            display: flex; gap: 20px; align-items: center;
+        }
+        .btn-nav {
+            background: rgba(255,255,255,0.1); border: 1px solid rgba(255,255,255,0.3);
+            color: white; padding: 16px 32px; border-radius: 50px;
+            font-size: 18px; font-weight: 700; cursor: pointer; transition: 0.3s;
+            backdrop-filter: blur(5px);
+        }
+        .btn-nav:hover { background: white; color: black; }
+        
+        .progress-container {
+            position: fixed; bottom: 50px; left: 80px; z-index: 100;
+            display: flex; gap: 10px; align-items: center; font-size: 20px; font-weight: 200;
+        }
+        .dot { width: 40px; height: 4px; background: rgba(255,255,255,0.2); border-radius: 2px; transition: 0.3s; }
+        .dot.active { background: white; width: 80px; }
+    </style>
+</head>
+<body>
+
+    <div class="slider-container">
+        
+        <!-- SLIDE 1: 위기 상황 (배경: 붉은빛 데이터/해킹 느낌) -->
+        <section class="slide active" style="background-image: url('https://images.unsplash.com/photo-1551288049-bebda4e38f71?q=80&w=2070&auto=format&fit=crop');">
+            <div class="content-wrapper">
+                <div>
+                    <div class="badge anim-item delay-1" style="color: var(--neon-red); border: 1px solid var(--neon-red);">01. CURRENT ISSUE</div>
+                    <h1 class="headline anim-item delay-2">
+                        개인사업자 대출 사기 시도<br>
+                        <span class="highlight" style="color: var(--neon-red); text-shadow: 0 0 30px rgba(255,51,102,0.5);">전년비 3배 이상 폭증</span>
+                    </h1>
+                    <ul class="bullet-list">
+                        <li class="anim-item delay-3" style="--text-dim: var(--neon-red);">25년 하반기 대비 확연한 상승 국면 진입</li>
+                        <li class="anim-item delay-3"><b>1분기 총 65건 발생</b> (월평균 20건 이상 시도)</li>
+                        <li class="anim-item delay-4">건당 2천만 원 가정 시, <b>약 13억 원 잠재 리스크</b> 노출</li>
+                    </ul>
+                </div>
+                <div class="visual-box anim-item delay-3">
+                    <h3 style="margin-top:0; color: var(--text-dim); font-size: 24px;">월평균 사기 시도 발생 추이 (건)</h3>
+                    <div class="chart-wrap">
+                        <div class="bar-col">
+                            <span class="bar-value">7</span>
+                            <div class="bar" style="height: 70px;"></div>
+                            <span style="font-size:18px; color:#888;">'25 하반기</span>
+                        </div>
+                        <div class="bar-col">
+                            <span class="bar-value" style="color:var(--neon-red);">20+</span>
+                            <div class="bar red" style="height: 200px;"></div>
+                            <span style="font-size:18px; font-weight:bold; color:white;">'26 1분기</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- SLIDE 2: 성과 (배경: 보안/잠물쇠 느낌) -->
+        <section class="slide" style="background-image: url('https://images.unsplash.com/photo-1614064641913-6b7140414b71?q=80&w=2070&auto=format&fit=crop');">
+            <div class="content-wrapper">
+                <div>
+                    <div class="badge anim-item delay-1" style="color: var(--neon-purple); border: 1px solid var(--neon-purple);">02. KEY ACHIEVEMENT</div>
+                    <h1 class="headline anim-item delay-2">
+                        의심 건 65건 <span class="highlight" style="color: var(--neon-purple);">전량 차단</span><br>
+                        13억 원 부실(NPL) 방어
+                    </h1>
+                    <ul class="bullet-list">
+                        <li class="anim-item delay-3" style="--text-dim: #e0b3ff;">단 한 건의 대출 실행(기표) 없이 100% 방어 성공</li>
+                        <li class="anim-item delay-3">탐지 고객 <b>전수 유의 DB 등재</b> 완료</li>
+                        <li class="anim-item delay-4">연관자 추가 대출 시도까지 <b>원천 차단</b>하여 당행 자산 보호</li>
+                    </ul>
+                </div>
+                <div class="visual-box anim-item delay-3">
+                    <div class="process-flow">
+                        <div class="step anim-item delay-2">🚨 사기 시도 65건 유입</div>
+                        <div style="text-align: center; color: var(--neon-purple);">▼</div>
+                        <div class="step anim-item delay-3">🛡️ 심사 즉각 거절 & DB 등록</div>
+                        <div style="text-align: center; color: var(--neon-purple);">▼</div>
+                        <div class="step highlight-step anim-item delay-4">💰 13억 원 부실 완벽 예방</div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- SLIDE 3: 시스템 (배경: 네트워크/데이터 망 느낌) -->
+        <section class="slide" style="background-image: url('https://images.unsplash.com/photo-1451187580459-43490279c0fa?q=80&w=2072&auto=format&fit=crop');">
+            <div class="content-wrapper">
+                <div>
+                    <div class="badge anim-item delay-1" style="color: var(--neon-blue); border: 1px solid var(--neon-blue);">03. SYSTEM & STRATEGY</div>
+                    <h1 class="headline anim-item delay-2">
+                        733룰 기반 모니터링 및<br>
+                        <span class="highlight" style="color: var(--neon-blue); text-shadow: 0 0 30px rgba(0,209,255,0.4);">3단계 교차 검증 체계</span>
+                    </h1>
+                    <ul class="bullet-list">
+                        <li class="anim-item delay-3" style="--text-dim: #b3f0ff;">정상 고객의 불편(오탐)을 원천 차단하는 정교한 필터링</li>
+                        <li class="anim-item delay-3"><b>[탐지]</b> 허위 사업장 타겟팅 룰(733룰) 적용</li>
+                        <li class="anim-item delay-4"><b>[검증]</b> CB사 이력 + 온라인 매출 + 현장 실사 결합</li>
+                        <li class="anim-item delay-4">현재 폭증 물량에도 <b>기존 리소스로 안정적 통제 중</b></li>
+                    </ul>
+                </div>
+                <div class="visual-box anim-item delay-3" style="background: rgba(0,209,255,0.05);">
+                    <div class="shield-container">
+                        <div class="shield-bg"></div>
+                        <div class="shield-pulse"></div>
+                        <div class="shield-text anim-item delay-4">
+                            3-STEP<br>
+                            <span style="font-size: 20px; color: white; text-shadow: none;">Cross Validation</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+    </div>
+
+    <!-- 하단 컨트롤 UI -->
+    <div class="progress-container">
+        <div class="dot active" id="dot-0"></div>
+        <div class="dot" id="dot-1"></div>
+        <div class="dot" id="dot-2"></div>
+    </div>
+
+    <div class="controls">
+        <button class="btn-nav" onclick="changeSlide(-1)">◀ PREV</button>
+        <button class="btn-nav" onclick="changeSlide(1)">NEXT ▶</button>
+    </div>
+
+    <script>
+        const slides = document.querySelectorAll('.slide');
+        const dots = document.querySelectorAll('.dot');
+        let currentIndex = 0;
+        let isAnimating = false;
+
+        function changeSlide(direction) {
+            if (isAnimating) return;
+            
+            const nextIndex = currentIndex + direction;
+            if (nextIndex < 0 || nextIndex >= slides.length) return;
+
+            isAnimating = true;
+
+            // 현재 슬라이드 처리 (방향에 따라 이동 위치 다르게)
+            slides[currentIndex].className = 'slide'; // active 제거
+            if (direction > 0) {
+                slides[currentIndex].classList.add('prev'); // 왼쪽으로 퇴장
+            } else {
+                // 오른쪽으로 밀면서 퇴장 (기본 상태가 우측 100px 이동된 상태임)
+                // class 'prev'가 없으면 오른쪽으로 서서히 사라짐
+            }
+
+            // 다음 슬라이드 준비 및 활성화
+            slides[nextIndex].className = 'slide'; // 초기화
+            if (direction < 0) {
+                // 뒤로가기 시 왼쪽에서 나타나도록 임시 설정 후 active
+                slides[nextIndex].style.transform = 'translateX(-100px)';
+                // Reflow 강제 발생
+                void slides[nextIndex].offsetWidth; 
+                slides[nextIndex].style.transform = '';
+            }
+            
+            slides[nextIndex].classList.add('active');
+
+            // 하단 인디케이터 업데이트
+            dots[currentIndex].classList.remove('active');
+            dots[nextIndex].classList.add('active');
+
+            currentIndex = nextIndex;
+
+            // 애니메이션 락 해제
+            setTimeout(() => { isAnimating = false; }, 800);
+        }
+
+        // 키보드 방향키 지원
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'ArrowRight') changeSlide(1);
+            if (e.key === 'ArrowLeft') changeSlide(-1);
+        });
+    </script>
+</body>
+</html>
+
+위코드를 홈페이지로 만들려고해 url로 인터넷이되는 곳에서 열수 있도록 만들어줘
